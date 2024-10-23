@@ -1,0 +1,61 @@
+---
+title: "hostsynch"
+format: pdf
+editor: visual
+---
+
+## Methods
+
+For host species $i$, let us assume that the recruitment of new susceptibles ($B$) is described with the Ricker equation:
+
+\begin{equation}
+B(N_{i,t}) = N_{i,t} exp(r_{i,t}  (\frac{1 - N_{i,t}}{K_i})).
+\label{ricker_discrete_model}
+\end{equation}
+
+Here, $r_t$ is the intrinsic growth rate and is time-dependent; $K$ is the specices' carrying capacity. Including infection:
+
+\begin{equation}
+S_{i,t+1} = N_{i,t} exp(r_t  (\frac{1 - N_{i,t}}{K_i})) -
+\sum_{j=1}^{n} \beta_{j} S_{i,t} I_{j,t} - \mu_i S_{i,t},
+\end{equation}
+
+\noindent the susceptible individuals can be infected by members of its own species as well as by members of other species. The transmission coefficient $\beta$ can be unique to the species and will determine the species' competence. The total number of new infections is: $\sum_{j=1}^{n} \beta_{j} S_{i,t} I_{j,t}$.
+
+As the susceptibles enter into the infected class: \begin{equation}
+I_{i,t+1} =\sum_{j=1}^{n} \beta_{j} S_{i,t} I_{j,t} - (\gamma_i + \mu_i) I_{i,t},
+\end{equation}
+
+\noindent where individuals recover at the rate of $\gamma$. When individuals recover, we have:
+
+\begin{equation}
+R_{i,t+1} = \gamma_i I_{i,t} -  \mu_i R_{i,t},
+\end{equation}
+
+fully-recovered hosts cannot get reinfected.
+
+```{r}
+
+ricker_SIR_model <- function(r = 0.5){}
+
+
+```
+
+\subsection{Varying temporal fluctuations}
+
+We model the intrinsic growth rate of each species as being seasonal:
+
+\begin{equation}
+r_{(i,t)} = r_0 + sin (wt + o_i) + \epsilon_t,
+\end{equation}
+
+For our mathematical model, we assume the following:
+
+1.  The
+
+```{r}
+n_sp = 100
+
+```
+
+## 
