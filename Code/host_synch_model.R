@@ -1,5 +1,18 @@
+r_matrix <- function(n_species, times, base_r, differences){
+  
+  rmat <- matrix(0,nrow = times, ncol = n_species )
+  for (k in seq(1,nspecies)){
+    shift = rnorm(1, mean = 0, sd = 5)
+    
+    rmat[,k]<-  (2.5 + sin(seq(1,times)/100 + shift))+ rnorm(times,mean = 0,sd =1)
+  }
+  return(rmat)
+}
 
-ricker_SIR_model <- function(n_sp = 100, times = 100,
+
+
+
+ricker_SIR_model <- function(n_sp = 5, times = 100,
    rmat2 =rmat,   beta = 0.01, mu = 2, d = 0.1, K = 5000 ,gamma = 0.005,initial_values = 10,
     delta_T = 0.5){
 
@@ -25,8 +38,7 @@ ricker_SIR_model <- function(n_sp = 100, times = 100,
   new_infection_sp <- matrix(0, ncol = 1,nrow = n_sp)
   
   for (sp in 1:(n_sp)){
-    
-    new_infection_sp[sp] <- sum(sapply(beta * S_mat[j,sp] * I_mat[j,], function(x) rpois(lambda = x, n= 1)))
+    new_infection_sp[sp] <- sum(beta * S_mat[j,sp] * I_mat[j,])
   }
   
   new_deaths_S <- sapply(mu * S_mat[j,], function(x) rpois(n =1, lambda = x))
@@ -60,7 +72,7 @@ ricker_SIR_model <- function(n_sp = 100, times = 100,
 }
 
 test<- ricker_SIR_model()
-full <- data.frame(test[[1]]+ test[[2]] + test[[3]])
+full <- data.frame( test[[2]])
 full$time <- seq(1,100)
 full_df <- melt(full, id.vars = 'time')
 
@@ -70,13 +82,3 @@ ggplot(full_df, aes(x = time, y =(value), color = variable, group = variable)) +
   theme_classic() + 
   theme(legend.position= 'none')
 
-
-r_matrix <- function(nspecies, times, base_r, differences){
-
-rmat <- matrix(0,nrow = times, ncol = nspecies )
-for (k in seq(1,nspecies)){
-shift = rnorm(1, mean = 0, sd =2)
-  
-rmat[,k]<-  2.5 + sin(seq(1,1000)/365 + shift)+ rnorm(1000,mean = 0,sd =0.1)
-}
-}
