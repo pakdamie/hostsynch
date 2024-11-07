@@ -1,6 +1,8 @@
 library(reshape2)
 library(ggplot2)
 library(viridis)
+library (synchrony)
+
 #' Calculate the growth rate (r) for all species over time
 #'
 #'
@@ -122,15 +124,16 @@ ricker_SIR_model <- function(
 Rmat_test <- r_matrix(n_species = 10, 
                       times = 100, 
                       base_r = 3.5, 
-                      sd_shift = 5.5, 
+                      sd_shift = 10, 
                       sd_env = 0.5)
 
 ###Rewrite in rcpp 
-model_sim<- ricker_SIR_model(n_species = 10, times = 100, rmatrix = Rmat_test, 
+model_sim <- ricker_SIR_model(n_species = 10, times = 100, rmatrix = Rmat_test, 
                              beta = 0.1, mu = 0.5,K = 50,
                              gamma = 0.05, 
                              initial_values = 100, 
                              delta_T = 1)
+
 
 full_SIR_DF <- data.frame(model_sim[[1]]+ model_sim[[2]] + model_sim[[3]])
 full_SIR_DF$time <- seq(1, nrow(full_SIR_DF))
@@ -147,4 +150,11 @@ ggplot(full_SIR_DF_melt, aes(x = time, y = log10(value), color= variable)) +
     axis.text = element_text(size = 14),
     axis.title = element_text(size = 15),
     legend.position = 'none') 
+
+#Thoughts about using the community synchrony metric
+
+
+time_series <- subset(full_SIR_DF, select = -c(time))
+community.sync(time_series)
+
 
