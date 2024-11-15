@@ -3,6 +3,18 @@ library(ggplot2)
 library(viridis)
 library (synchrony)
 
+beta_creator <- function(n_species = 100){
+  beta_interspecific = 0.01
+  beta_intraspecific = 0.05
+
+  Beta_Mat <- matrix(beta_interspecific, nrow = n_species, ncol = n_species)  
+  diag(Beta_Mat) <- beta_intraspecific
+  
+  return(Beta_Mat)
+}
+
+
+
 #' Calculate the growth rate (r) for all species over time
 #'
 #'
@@ -19,7 +31,7 @@ library (synchrony)
 #' @export
 #'
 #' @examples r_matrix(100, 100, 2.5, 1,1)
-r_matrix <- function(n_species = 100, times, base_r, sd_shift = 1, sd_env = 1){
+r_matrix <- function(n_species = 100, times, base_r, sd_shift = 1, sd_env = 1,seasonal=1){
   
   #Initialize an empty matrix to be filled with growth rates
   rmat <- matrix(0, nrow = times, ncol = n_species )
@@ -27,9 +39,9 @@ r_matrix <- function(n_species = 100, times, base_r, sd_shift = 1, sd_env = 1){
   # For each species, we give them an intrinsic 'shift' 
   
   for (k in seq(1, n_species)){
-    shift = rnorm(1, mean = 0, sd = sd_shift )
+    shift = rnorm(1, mean = 0, sd = sd_shift)
     
-    rmat[ , k]<- base_r + sin(seq(1, times)/365 + shift) + 
+    rmat[ , k] <- base_r + sin((seq(1, times) -  shift)/seasonal) + 
                rnorm(times, mean = 0, sd = sd_env)
   }
   return(rmat)
@@ -83,25 +95,31 @@ ricker_SIR_model <- function(
   #Total individuals in each species at time j
   N <- S_mat[j, ] + I_mat[j, ] + R_mat[j, ]
   
-  #Ricker births 
-  new_births <- N * exp(rmatrix[j, ] * (1-(N/K)))
   
-
+  #Ricker births 
+  
+  new_births <- (N * exp(rmatrix[j, ] * (1-(N/K))))
+  
+  
   #How many individuals get infected by other individuals both within and
   #between species
-  new_infections_sp <- matrix(0, ncol = 1, nrow =   n_species)
   
-  for (sp in 1:(n_species)){
-    
-    new_infections_sp[sp] <- sum(beta * S_mat[j, sp] * I_mat[j, ])
-  }
+  # TD: I think this is odd, as it's treating cross-species transmission with
+  # the same weight as within-species transmission. Perhaps beta should be a 
+  # matrix of values, with diag being within-species transmission and off-diag
+  # being cross-species transmission (often much much lower values
+  #How many individuals get infected by other individuals both within and
+  #between species
+  
+
+  new_infections_sp <-colSums(diag(I_mat[j,]) %*% (diag(S_mat[j,]) %*% beta))
   
   new_deaths_S <- mu * S_mat[j, ]
   new_deaths_I <- mu * I_mat[j, ]
   new_deaths_R <- mu * R_mat[j, ]
   new_recoveries <- gamma * I_mat[j, ]
   
-  S_change <- new_births + new_deaths_S - new_infections_sp
+  S_change <- new_births - new_deaths_S - new_infections_sp
   I_change <- new_infections_sp - new_recoveries - new_deaths_I
   R_change <- new_recoveries - new_deaths_R
   
@@ -121,30 +139,36 @@ ricker_SIR_model <- function(
 
 ###Example code 
 
+beta_matrix <- beta_creator (n_species = 10)
+
 Rmat_test <- r_matrix(n_species = 10, 
-                      times = 100, 
-                      base_r = 3.5, 
-                      sd_shift = 10, 
-                      sd_env = 0.5)
+                      times = 365, 
+                      base_r = 1.2, 
+                      sd_shift = 0.01, 
+                      sd_env = 0.1)
+image(Rmat_test)
+
+
 
 ###Rewrite in rcpp 
-model_sim <- ricker_SIR_model(n_species = 10, times = 100, rmatrix = Rmat_test, 
-                             beta = 0.1, mu = 0.5,K = 50,
-                             gamma = 0.05, 
-                             initial_values = 100, 
-                             delta_T = 1)
+model_sim <- ricker_SIR_model(n_species = 
+                              10, times = 100, rmatrix = Rmat_test, 
+                              beta = beta_matrix , mu =1.2,K =1000,
+                              gamma = 1e-2, 
+                              initial_values = 10, 
+                              delta_T = 1)
 
 
-full_SIR_DF <- data.frame(model_sim[[1]]+ model_sim[[2]] + model_sim[[3]])
+full_SIR_DF <- data.frame(model_sim[[1]] )
 full_SIR_DF$time <- seq(1, nrow(full_SIR_DF))
 full_SIR_DF_melt <- melt(full_SIR_DF, id.vars = 'time')
 
 
-ggplot(full_SIR_DF_melt, aes(x = time, y = log10(value), color= variable)) + 
-  geom_line(size = 0.9) + 
+ggplot(full_SIR_DF_melt, aes(x = time, y = (value ), color= variable)) + 
+  geom_line(size = 0.5, alpha = 0.5) + 
   scale_color_viridis(discrete= TRUE, option = 'turbo') +
   xlab("Time") + 
-  ylab("Total Abundance") + 
+  ylab("Total Abundance") + ylim(600, 1200) + 
   theme_classic() + 
   theme(
     axis.text = element_text(size = 14),
