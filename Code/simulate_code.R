@@ -12,17 +12,18 @@
 #'
 #' @examples
 simulate_variablity_species <- function(sigma, r0, E_0, r_sigma_0, n_species){
+  
   rnorm_rmax <- rnorm(n_species, mean = r0, sd = sigma )
   rnorm_Eopt <- rnorm(n_species, mean = E_0, sd = sigma)
   rnorm_r_sigma <- rnorm(n_species, mean = r_sigma_0, sd = sigma)
    
-  rmatrix <- cbind(rnorm_rmax, rnorm_Eopt, rnorm_r_sigma)
+  rmatrix <- cbind(r0, rnorm_Eopt, r_sigma_0)
   return(rmatrix)
 }
 
 #' Generate the growth rate at environment value
 #'
-#' @param E 
+#' @param E (numeric) environment
 #' @param rmat_row 
 #'
 #' @returns
@@ -56,10 +57,39 @@ simulate_env_flucs <- function(sd_envir, timestep = 365 * 10, seasonal = 10){
 }
 
 
-library(reshape2)
-library(ggplot2)
-library(viridis)
-library(synchrony)
+#' Calculate the growth rate (r) for all species over time
+#'
+#' @param n_species The number of species (default = 100)
+#' @param times How long the model will run for 
+#' @param base_r What is the baseline growth rate for all species 
+#' @param sd_shift The SD of the normal distribution (how much does the
+#' species deviate)
+#' @param sd_env The SD of the environmental noise (how much does the species
+#' deviate)
+
+#' @return A matrix with columns as species and the rows as time
+#' @export
+#'
+#' @examples r_matrix(100, 100, 2.5, 1,1)
+simulate_r_matrix <- function(n_species = 100, sigma = 1, r0 = 2, E_0 = 2, r_sigma_0=5,
+                              sd_envir = 0.05, timestep = 365 * 10, seasonal = 10){
+  
+  environmental_factor <- simulate_env_flucs(sd_envir, timestep, seasonal)
+  species_trait <- simulate_variablity_species(sigma, r0, E_0, r_sigma_0, n_species)
+  
+  r_mat <- matrix(0, nrow = n_species, ncol = timestep )
+  
+  for (e in seq(1,nrow(environmental_factor))){
+    environ_at_t <- environmental_factor[e,"environ"]
+    
+    species_r<- apply(species_trait, 1, function(x) simulate_gaussian_curve(environ_at_t,x))
+    
+    r_mat[,e] <- species_r
+    
+  }
+  return(rmat)
+}
+
 
 beta_creator <- function(n_species = 3, mean_beta, sd_norm ){
   
@@ -84,35 +114,6 @@ beta_creator <- function(n_species = 3, mean_beta, sd_norm ){
   return(Beta_Mat)
 }
 
-#' Calculate the growth rate (r) for all species over time
-#'
-#' @param n_species The number of species (default = 100)
-#' @param times How long the model will run for 
-#' @param base_r What is the baseline growth rate for all species 
-#' @param sd_shift The SD of the normal distribution (how much does the
-#' species deviate)
-#' @param sd_env The SD of the environmental noise (how much does the species
-#' deviate)
-
-#' @return A matrix with columns as species and the rows as time
-#' @export
-#'
-#' @examples r_matrix(100, 100, 2.5, 1,1)
-r_matrix <- function(n_species = 100, times, base_r, sd_shift = 1, sd_env = 1,seasonal=1){
-  
-  #Initialize an empty matrix to be filled with growth rates
-  rmat <- matrix(0, nrow = times, ncol = n_species )
-  
-  # For each species, we give them an intrinsic 'shift' 
-  
-  for (k in seq(1, n_species)){
-    shift = rnorm(1, mean = 0, sd = sd_shift)
-    
-    rmat[ , k] <- base_r + sin((seq(1, times) -  shift)/seasonal) + 
-      rnorm(times, mean = 0, sd = sd_env)
-  }
-  return(rmat)
-}
 
 
 #' Simulate the discrete SIR/Ricker model
