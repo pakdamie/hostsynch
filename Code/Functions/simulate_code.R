@@ -16,7 +16,8 @@ create_parameters <- function(type = "standard") {
       K = 100, #Carrying capacity
       gamma = 1e-2, #Recovery 
       initial_values = 10,
-      delta_T = 1
+      delta_T = 1,
+      time = 365
     )
 
   return(param_df)
@@ -51,7 +52,7 @@ simulate_variablity_species <- function(sigma_i, r0, E_0, r_sigma_0, n_species) 
 
 #' Generate the growth rate at the given environment value
 #'
-#' Assuming a gaussian function, given the parameters of the species,
+#' Assuming a Gaussian function, given the parameters of the species,
 #' what is the growth rate of the species at Environment condition (time t)
 #'
 #' @param E (numeric) environment
@@ -100,27 +101,25 @@ simulate_env_flucs <- function(sd_envir, timestep = 365 * 10, seasonal = 10) {
 #' @export
 #'
 #' @examples r_matrix(100, 100, 2.5, 1, 1)
-simulate_r_matrix <- function(n_species = 100, sigma_i = 1,
-                              r0 = 2, E_0 = 2, r_sigma_0 = 5,
-                              sd_envir = 0.05, timestep = 365 * 10, seasonal = 10) {
+simulate_r_matrix <- function(
+    n_species = 100, sigma_i = 1, r0 = 2, E_0 = 2, r_sigma_0 = 5,
+     sd_envir = 0.05, timestep = 365 * 10, seasonal = 10) {
   
   environmental_factor <- simulate_env_flucs(sd_envir, timestep, seasonal)
-  species_trait <- simulate_variablity_species(sigma, r0, E_0, r_sigma_0, n_species)
+  species_trait <- simulate_variablity_species(sigma_i, r0, E_0, r_sigma_0, n_species)
 
   
   # For each time-step (col)
-  r_mat <- matrix(0, nrow = n_species, ncol = timestep)
+  r_mat <- matrix(0, nrow = timestep, ncol = n_species)
 
-  
-  
   for (e in seq(1, nrow(environmental_factor))) {
     environ_at_t <- environmental_factor[e, "environ"]
 
     species_r <- apply(species_trait, 1, function(x) simulate_gaussian_curve(environ_at_t, x))
 
-    r_mat[, e] <- species_r
+    r_mat[e,] <- species_r
   }
-  return(rmat)
+  return(r_mat)
 }
 
 
@@ -134,7 +133,7 @@ simulate_r_matrix <- function(n_species = 100, sigma_i = 1,
 #' @export
 #'
 #' @examples
-simulate_betas <- function(n_species = 3, mean_beta, sd_beta) {
+simulate_betas <- function(n_species = 10, mean_beta, sd_beta) {
   
   beta_intraspecific <- rlnorm(n_species,
     meanlog = log(mean_beta),
@@ -203,7 +202,7 @@ ricker_SIR_model <- function(beta, mu, K, gamma, r_matrix, n_species, times,
 
     # Ricker births
 
-    new_births <- (N * exp(rmatrix[j, ] * (1 - (N / K))))
+    new_births <- (N * exp( r_matrix[j, ] * (1 - (N / K))))
 
 
     # How many individuals get infected by other individuals both within and
@@ -232,21 +231,20 @@ ricker_SIR_model <- function(beta, mu, K, gamma, r_matrix, n_species, times,
 }
 
 
-#' Title
-#'
-#' @param rmatrix
-#'
+#' Simulate full model 
+#' @param n_species
+#' @param rmatrix 
+#' @param bmatrix - Disease transmission
 #' @returns
 #' @export
 #'
 #' @examples
-simulate_full_model <- function(param_type, bmatrix, rmatrix) {
+simulate_full_model <- function(n_species,param_type, bmatrix, rmatrix) {
   params <- create_parameters(param_type)
 
   mu <- params["mu"]
   K <- params["K"]
   gamma <- params["gamma"]
-  n_species <- params["n_species"]
   times <- params["time"]
   initial_values <- params["initial_values"]
   delta_T <- params["delta_T"]
