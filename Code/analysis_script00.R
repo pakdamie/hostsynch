@@ -12,8 +12,7 @@ Rmat_test <- r_matrix(n_species = 3,
 
 
 ###Rewrite in rcpp 
-model_sim <- ricker_SIR_model(n_species = 
-                                3, times = 100, rmatrix = Rmat_test, 
+model_sim <- ricker_SIR_model(n_species = 3, times = 100, rmatrix = Rmat_test, 
                               beta = beta_matrix , 
                               mu = 1.1, 
                               K = 100,

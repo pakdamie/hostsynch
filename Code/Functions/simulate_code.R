@@ -1,3 +1,32 @@
+#' Retrieve parameter data.frame 
+#'
+#' @param type 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+create_parameters <- function(type = "standard"){
+  param_df <- 
+    c(sigma = 1,
+      r0 = 2.5,
+      E_0 = 5,
+      r_sigma_0 = 2,
+      n_species = 100,
+      sd_envir = 0.02,
+      timestep = 365 * 10,
+      seasonal = 10,
+      mean_beta = 1,
+      sd_norm = 0.5,
+      mu = 1.1, 
+      K = 100,
+      gamma =1e-2, 
+      initial_values =10 , 
+      delta_T =1)
+  
+  return(param_df)
+}
+
 
 #' Simulate the different parameters for each species' performance curve
 #'
@@ -21,7 +50,7 @@ simulate_variablity_species <- function(sigma, r0, E_0, r_sigma_0, n_species){
   return(rmatrix)
 }
 
-#' Generate the growth rate at environment value
+#' Generate the growth rate at the given environment value
 #'
 #' @param E (numeric) environment
 #' @param rmat_row 
@@ -41,7 +70,7 @@ simulate_gaussian_curve <- function(E, rmat_row){
  
 }
 
-#' Simulate the environmental fluctuations
+#' Simulate the environmental fluctuations independently
 #'
 #' @param sd_envir (numeric)
 #' @param timestep (numeric)
@@ -91,7 +120,7 @@ simulate_r_matrix <- function(n_species = 100, sigma = 1, r0 = 2, E_0 = 2, r_sig
 }
 
 
-beta_creator <- function(n_species = 3, mean_beta, sd_norm ){
+simulate_betas<- function(n_species = 3, mean_beta, sd_norm ){
   
   #DAMIE CHECK - I WANT POSITIVE BETA COEFFICIENTS.
   beta_intraspecific <- rlnorm(n_species, 
@@ -139,7 +168,7 @@ beta_creator <- function(n_species = 3, mean_beta, sd_norm ){
 #' 
 ricker_SIR_model <- function(
     n_species, times, rmatrix, 
-    beta, mu, d ,K ,
+    beta, mu,K ,
     gamma, initial_values, delta_T){
   
   #These are the matrix where are tracking the abundance
@@ -206,5 +235,8 @@ ricker_SIR_model <- function(
 }
 
 
-
+simulate_full_model <- function(){
+  parameter_df <- create_parameters("standard")
+  
+}
 

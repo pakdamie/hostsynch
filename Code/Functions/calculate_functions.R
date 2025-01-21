@@ -1,3 +1,16 @@
+#' Calculate the RE
+#'
+#' @param List 
+#' @param time 
+#' @param param 
+#' @param bmat 
+#' @param mu 
+#' @param gamma 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 calculate_R_effective <- function(List, time, param, bmat, mu, gamma) {
   
   S <- List[[1]]
@@ -18,8 +31,6 @@ calculate_R_effective <- function(List, time, param, bmat, mu, gamma) {
 
     RE <- max(eigen(F_mat %*% V_mat)$values)
     
-    
-
     contribution_species <- (colSums(F_mat %*% V_mat))
 
     RE_matrix[[j]] <- cbind.data.frame(time = j, RE = RE)
