@@ -17,7 +17,7 @@ create_parameters <- function(type = "standard") {
       gamma = 1e-2, #Recovery 
       initial_values = 10,
       delta_T = 1,
-      time = 365
+      time = 365 * 5
     )
 
   return(param_df)
@@ -81,7 +81,7 @@ simulate_gaussian_curve <- function(E, rmat_row) {
 #' @export
 #'
 #' @examples
-simulate_env_flucs <- function(sd_envir, timestep = 365 * 10, seasonal = 10) {
+simulate_env_flucs <- function(sd_envir, timestep = 365 * 5, seasonal = 10) {
   environ <- 10 * sin(seq(1, timestep) / seasonal) + rnorm(timestep, mean = 0, sd = sd_envir)
   return(cbind(seq(1:timestep), environ))
 }
@@ -102,7 +102,7 @@ simulate_env_flucs <- function(sd_envir, timestep = 365 * 10, seasonal = 10) {
 #'
 #' @examples r_matrix(100, 100, 2.5, 1, 1)
 simulate_r_matrix <- function(
-    n_species = 100, sigma_i = 1, r0 = 2, E_0 = 2, r_sigma_0 = 5,
+    n_species = 10, sigma_i = 1, r0 = 2, E_0 = 2, r_sigma_0 = 5,
      sd_envir = 0.05, timestep = 365 * 10, seasonal = 10) {
   
   environmental_factor <- simulate_env_flucs(sd_envir, timestep, seasonal)
@@ -176,7 +176,7 @@ simulate_betas <- function(n_species = 10, mean_beta, sd_beta) {
 #' @export
 #'
 #' @examples
-ricker_SIR_model <- function(beta, mu, K, gamma, r_matrix, n_species, times,
+ricker_SIR_model <- function(beta, mu, K, gamma, rmatrix, n_species, times,
                              initial_values, delta_T) {
   # These are the matrix where are tracking the abundance
   compartment_label <- c(
@@ -202,7 +202,7 @@ ricker_SIR_model <- function(beta, mu, K, gamma, r_matrix, n_species, times,
 
     # Ricker births
 
-    new_births <- (N * exp( r_matrix[j, ] * (1 - (N / K))))
+    new_births <- (N * exp(rmatrix[j, ] * (1 - (N / K))))
 
 
     # How many individuals get infected by other individuals both within and
@@ -250,9 +250,11 @@ simulate_full_model <- function(n_species,param_type, bmatrix, rmatrix) {
   delta_T <- params["delta_T"]
 
   model <- ricker_SIR_model(
-    bmatrix, mu, K, gamma, r_matrix, n_species, times,
+    bmatrix, mu, K, gamma, rmatrix, n_species, times,
     initial_values, delta_T
   )
 
   return(model)
 }
+
+
