@@ -9,18 +9,29 @@
 #' @export
 #'
 #' @examples
-create_parameters <- function(type = "standard") {
+create_parameters <- function(timesteps, type = "standard") {
+  
   param_df <-
-    c(
-      mu = 1.1, # Mortality rate
-      K = 100, #Carrying capacity
-      gamma = 1e-2, #Recovery 
-      initial_values = 10,
+    c(infection_time = 100,
+      mu = 0.01, # Mortality rate
+      K = 100,  # Carrying capacity
+      gamma = 1/10, #Recovery rate 
+      initial_values = 100,
       delta_T = 1,
-      time = 365 * 5
+      time = timesteps
     )
-
-  return(param_df)
+  
+  
+  #there is no infection
+  param_no_inf <-param_df 
+  param_no_inf["infection_time"] <- 0
+  
+  switch_param<- switch(type,
+         "standard" = param_df,
+         "no_inf" = param_no_inf)
+  
+  
+  return(switch_param)
 }
 
 #' Simulate the different parameters for each species' performance curve
@@ -41,11 +52,11 @@ create_parameters <- function(type = "standard") {
 #'
 #' @examples
 simulate_variablity_species <- function(sigma_i, r0, E_0, r_sigma_0, n_species) {
-  rnorm_rmax <- rnorm(n_species, mean = r0, sd = sigma_i) # growth rate
+  rnorm_rmax <- rnorm(n_species, mean = r0, sd = 0.01) # growth rate
   rnorm_Eopt <- rnorm(n_species, mean = E_0, sd = sigma_i) # optimum Environment
-  rnorm_r_sigma <- rnorm(n_species, mean = r_sigma_0, sd = sigma_i) # std.
+  rnorm_r_sigma <- rnorm(n_species, mean = r_sigma_0, sd = 0.1) # std.
 
-  rmatrix <- cbind(r0, rnorm_Eopt, r_sigma_0)
+  rmatrix <- cbind(r0, rnorm_Eopt,r_sigma_0)
 
   return(rmatrix)
 }
@@ -82,7 +93,8 @@ simulate_gaussian_curve <- function(E, rmat_row) {
 #'
 #' @examples
 simulate_env_flucs <- function(sd_envir, timestep = 365 * 5, seasonal = 10) {
-  environ <- 10 * sin(seq(1, timestep) / seasonal) + rnorm(timestep, mean = 0, sd = sd_envir)
+  
+  environ <- 10 * sin((2*pi*seq(1, timestep)) / seasonal) + rnorm(timestep, mean = 0, sd = sd_envir)
   return(cbind(seq(1:timestep), environ))
 }
 
@@ -103,7 +115,7 @@ simulate_env_flucs <- function(sd_envir, timestep = 365 * 5, seasonal = 10) {
 #' @examples r_matrix(100, 100, 2.5, 1, 1)
 simulate_r_matrix <- function(
     n_species = 10, sigma_i = 1, r0 = 2, E_0 = 2, r_sigma_0 = 5,
-     sd_envir = 0.05, timestep = 365 * 10, seasonal = 10) {
+    sd_envir = 0.15, timestep = 365 * 10, seasonal = 10) {
   
   environmental_factor <- simulate_env_flucs(sd_envir, timestep, seasonal)
   species_trait <- simulate_variablity_species(sigma_i, r0, E_0, r_sigma_0, n_species)
@@ -123,7 +135,8 @@ simulate_r_matrix <- function(
 }
 
 
-#' Simulate the beta matrix for disease transmission
+#' Simulate the beta matrix for disease transmission using a gamma
+#' distribution
 #'
 #' @param n_species Number of species needed
 #' @param mean_beta The community base-line disease transmission
@@ -133,23 +146,23 @@ simulate_r_matrix <- function(
 #' @export
 #'
 #' @examples
-simulate_betas <- function(n_species = 10, mean_beta, sd_beta) {
+simulate_betas <- function(n_species = 10, mean_beta, gamma_shape) {
   
-  beta_intraspecific <- rlnorm(n_species,
-    meanlog = log(mean_beta),
-    sdlog = sd_beta
-  )
+  # Calculate scale to achieve the target mean
+  scale <- mean_beta / gamma_shape
+  
+  beta_intra <- rgamma(n_species, shape = gamma_shape, scale = scale)
+  
+  beta_inter <- beta_intra -
+    runif(n_species, min = 0, max = beta_intra)
 
-  beta_interspecific <- beta_intraspecific -
-    runif(n_species, min = 0, max = beta_intraspecific)
 
-
-  Beta_Mat <- matrix(beta_interspecific,
+  Beta_Mat <- matrix(beta_inter,
     nrow = n_species,
     ncol = n_species
   )
 
-  diag(Beta_Mat) <- beta_intraspecific
+  diag(Beta_Mat) <- beta_intra
 
   return(Beta_Mat)
 }
@@ -176,7 +189,8 @@ simulate_betas <- function(n_species = 10, mean_beta, sd_beta) {
 #' @export
 #'
 #' @examples
-ricker_SIR_model <- function(beta, mu, K, gamma, rmatrix, n_species, times,
+ricker_SIR_model <- function(bmatrix, mu, K, gamma, 
+                             infection_time, rmatrix, n_species, times,
                              initial_values, delta_T) {
   # These are the matrix where are tracking the abundance
   compartment_label <- c(
@@ -193,21 +207,23 @@ ricker_SIR_model <- function(beta, mu, K, gamma, rmatrix, n_species, times,
   }
 
   S_mat[1, ] <- initial_values # Initialize everyone the same
-  I_mat[1, ] <- 1 # Initial seed of infection
+  
 
   for (j in seq(1, times - 1)) {
     # Total individuals in each species at time j
     N <- S_mat[j, ] + I_mat[j, ] + R_mat[j, ]
 
-
     # Ricker births
-
-    new_births <- (N * exp(rmatrix[j, ] * (1 - (N / K))))
-
+    new_births <- (N * exp(rmatrix[j, ] * (1 - (N/K)))) - N
 
     # How many individuals get infected by other individuals both within and
     # between species
-    new_infections_sp <- colSums(diag(I_mat[j, ]) %*% (diag(S_mat[j, ]) %*% beta))
+    
+    if(j == infection_time){
+    I_mat[j, sample(1:n_species,1) ] <- 1 # Initial seed of infection
+    }
+    
+    new_infections_sp <- colSums(diag(I_mat[j, ]) %*% (diag(S_mat[j, ]) %*% bmatrix))
 
     new_deaths_S <- mu * S_mat[j, ]
     new_deaths_I <- mu * I_mat[j, ]
@@ -240,8 +256,10 @@ ricker_SIR_model <- function(beta, mu, K, gamma, rmatrix, n_species, times,
 #'
 #' @examples
 simulate_full_model <- function(n_species,param_type, bmatrix, rmatrix) {
-  params <- create_parameters(param_type)
+  
+  params <- create_parameters(365 *1,param_type)
 
+  infection_time <- params["infection_time"]
   mu <- params["mu"]
   K <- params["K"]
   gamma <- params["gamma"]
@@ -250,11 +268,9 @@ simulate_full_model <- function(n_species,param_type, bmatrix, rmatrix) {
   delta_T <- params["delta_T"]
 
   model <- ricker_SIR_model(
-    bmatrix, mu, K, gamma, rmatrix, n_species, times,
+    bmatrix, mu, K, gamma, infection_time, rmatrix, n_species, times,
     initial_values, delta_T
   )
 
   return(model)
 }
-
-

@@ -1,32 +1,55 @@
-###Experiment
+### Play around with the environmental factor
+#sd_envir, timestep, and seasonal period 
+environmental_factor <- simulate_env_flucs(2.5, 365 * 1, 365)
+plot(environmental_factor,type = 'l')
 
 
-#Create the beta-matrix of interest
-n_species = 10
 
-###Beta matrix - transmission model
-beta_matrix <- simulate_betas(n_species, mean_beta = 0.01, sd_beta = 1.5)
+growth_rate_df<- simulate_variablity_species(sigma_i = 10, r0 = 0.01, 
+                                             E_0 = 0, r_sigma_0 = 5,10)|>
+  apply(1, function(x) simulate_gaussian_curve(x,E = seq(-50,50)))|>
+  data.frame()
 
-###Growth rate
-r_matrix <- simulate_r_matrix(n_species, sigma_i = 10, 
-                              r0 = 2, E_0 = 0, r_sigma_0 = 5,
-                              sd_envir = 1.5, timestep = 365, 
-                              seasonal = 1)
-###Rewrite in rcpp 
-model_sim <- simulate_full_model(n_species,
+growth_rate_df$E <-  seq(-50,50)
+growth_rate_melt <- melt(growth_rate_df, id.vars ='E')
+
+ggplot(growth_rate_melt, aes( x= E, y= value, group = variable, color = variable)) + 
+  geom_line() + 
+  scale_color_viridis(discrete = TRUE) + 
+  theme_bw() + 
+  xlab("Environment") + 
+  ylab("Growth Rate") + 
+  geom_vline(xintercept = 0)
+
+
+rmatrix_interest <- simulate_r_matrix(r0 = 0.01, E_0 = 0, sigma_i = 10, 
+                                      timestep = 365 * 1,
+                                      sd_envir = 2.5, seasonal = 365)
+
+####Play around with the beta matrix
+beta_matrix <- simulate_betas(n_species = 10, mean_beta = 9e4, gamma_shape = 0.8)
+
+full_model<- simulate_full_model(n_species = 10,
                                  param = "standard",
                                  bmatrix = beta_matrix,
-                                 rmatrix = r_matrix) 
+                                 rmatrix =  rmatrix_interest) 
 
-full_SIR_DF<- wrangle_model_output(model_sim, "Yes")
+wrangle_model_output(full_model, "No") |>
+  plot_total_abundance()
+
+wrangle_sus_inf_output(full_model)[[1]] |>
+  plot_total_abundance()
+
+wrangle_sus_inf_output(full_model)[[2]] |>
+  plot_total_abundance()
+
+model<- wrangle_model_output(full_model, "No") 
+agg_model <- aggregate(model$value, list(model$time), 'sum')
+
+ggplot(agg_model, aes(x = Group.1, y = x)) + geom_line()
 
 
+RE <- calculate_R_effective(full_model, time = 365 * 1, beta_matrix, create_parameters(365, "standard"))
 
-RE_matrix_1 <- calculate_R_effective(model_sim,time = 365, b_matrix = beta_matrix, 
-                                     params = create_parameters('standard'))
-
-
-
-#Thoughts about using the community synchrony metric
-
+plot(RE,type = 'l')
 
