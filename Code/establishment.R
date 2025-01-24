@@ -1,21 +1,21 @@
 
-sigma_i <- seq(0,30,length = 10)
+sigma_i <- seq(0,20,length = 10)
 
 RE_invadable_list<- NULL
 
 for (i in seq_along(sigma_i)){
   
-  rmatrix_interest <- lapply(1:5, function(x) simulate_r_matrix(r0 = 0.02, E_0 = 0, 
+  rmatrix_interest <- lapply(1:100, function(x) simulate_r_matrix(r0 = 0.10, 
                                                                   timestep = 365 * 1,
-                                                                  sd_envir = 2, seasonal = 30,
+                                                                  sd_envir = 10, seasonal = 10,
                                                                   sigma_i = sigma_i[i]))
   
-  beta_matrix <- simulate_betas(n_species = 10, mean_beta = 9e-4, gamma_shape = 0.8)
+  beta_matrix <- simulate_betas(n_species = 10, mean_beta = 5e-4, CV_desired = 0.10)
   
   
   RE_synchrony_rep <- NULL
   
-  for (r in seq(1,5)){
+  for (r in seq(1,100)){
     
     model_sim <- simulate_full_model(n_species = 10,
                                      param = "no_inf",
@@ -27,7 +27,7 @@ for (i in seq_along(sigma_i)){
     RE_time <- calculate_R_effective(model_sim, time = 365 * 1, b_matrix = beta_matrix, 
                                      params = create_parameters(365 * 1,"no_inf"))
     
-    RE_greater_1 <- nrow(RE_time[RE_time$RE>=1,])/365
+    RE_greater_1 <- nrow(RE_time[RE_time$RE>1,])/365
     
     synchrony_value <- community.sync(subset(model_sim_df, select = -time))$obs
     
@@ -43,7 +43,11 @@ RE_synchrony_DF$sigma_i  <- rep(sigma_i, each = 100)
 
 
 
-ggplot(RE_synchrony_DF, aes( x= synch_value, y= prop_invadable)) + geom_point()
+ggplot(RE_synchrony_DF, aes( x= synch_value, y= prop_invadable)) +
+  geom_point() + 
+  xlab("Community synchrony") + 
+  ylab("Proportion of time invasible") + 
+  theme_classic()
 
 
 

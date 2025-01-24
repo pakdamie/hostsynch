@@ -12,10 +12,10 @@
 create_parameters <- function(timesteps, type = "standard") {
   
   param_df <-
-    c(infection_time = 100,
+    c(infection_time = 50,
       mu = 0.01, # Mortality rate
       K = 100,  # Carrying capacity
-      gamma = 1/10, #Recovery rate 
+      gamma = 1/7, #Recovery rate 
       initial_values = 100,
       delta_T = 1,
       time = timesteps
@@ -24,7 +24,7 @@ create_parameters <- function(timesteps, type = "standard") {
   
   #there is no infection
   param_no_inf <-param_df 
-  param_no_inf["infection_time"] <- 0
+  param_no_inf["infection_time"] <- 1e10
   
   switch_param<- switch(type,
          "standard" = param_df,
@@ -52,9 +52,9 @@ create_parameters <- function(timesteps, type = "standard") {
 #'
 #' @examples
 simulate_variablity_species <- function(sigma_i, r0, E_0, r_sigma_0, n_species) {
-  rnorm_rmax <- rnorm(n_species, mean = r0, sd = 0.01) # growth rate
+  rnorm_rmax <- rnorm(n_species, mean = r0, sd = 2) # growth rate
   rnorm_Eopt <- rnorm(n_species, mean = E_0, sd = sigma_i) # optimum Environment
-  rnorm_r_sigma <- rnorm(n_species, mean = r_sigma_0, sd = 0.1) # std.
+  rnorm_r_sigma <- rnorm(n_species, mean = r_sigma_0, sd = 1) # std.
 
   rmatrix <- cbind(r0, rnorm_Eopt,r_sigma_0)
 
@@ -134,6 +134,21 @@ simulate_r_matrix <- function(
   return(r_mat)
 }
 
+simulate_beta_gamma <- function(n, mean_beta, CV_desired){
+  
+  std_wanted <- CV_desired * mean_beta
+  
+  varianced_wanted <- std_wanted^2
+  
+  # Calculate scale to achieve the target mean
+  shape <- (mean_beta^2) / (varianced_wanted)
+  rate <- (mean_beta) / (varianced_wanted)
+  
+  return(dgamma(seq(0, 9e-4, length.out = n), shape = shape, rate = rate))
+  
+}
+
+
 
 #' Simulate the beta matrix for disease transmission using a gamma
 #' distribution
@@ -146,12 +161,17 @@ simulate_r_matrix <- function(
 #' @export
 #'
 #' @examples
-simulate_betas <- function(n_species = 10, mean_beta, gamma_shape) {
+simulate_betas <- function(n_species = 10, mean_beta, CV_desired) {
+  
+  
+  std_wanted <- CV_desired * mean_beta
+  varianced_wanted <- std_wanted^2
   
   # Calculate scale to achieve the target mean
-  scale <- mean_beta / gamma_shape
-  
-  beta_intra <- rgamma(n_species, shape = gamma_shape, scale = scale)
+  shape <- (mean_beta^2) / (varianced_wanted)
+  rate <- (mean_beta) / (varianced_wanted)
+
+  beta_intra <- rgamma(n_species, shape = shape, rate = rate)
   
   beta_inter <- beta_intra -
     runif(n_species, min = 0, max = beta_intra)
@@ -164,6 +184,7 @@ simulate_betas <- function(n_species = 10, mean_beta, gamma_shape) {
 
   diag(Beta_Mat) <- beta_intra
 
+  
   return(Beta_Mat)
 }
 
@@ -220,10 +241,10 @@ ricker_SIR_model <- function(bmatrix, mu, K, gamma,
     # between species
     
     if(j == infection_time){
-    I_mat[j, sample(1:n_species,1) ] <- 1 # Initial seed of infection
+    I_mat[j, sample(1:n_species,1) ] <- 10 # Initial seed of infection
     }
     
-    new_infections_sp <- colSums(diag(I_mat[j, ]) %*% (diag(S_mat[j, ]) %*% bmatrix))
+    new_infections_sp <-  S_mat[j, ] * (bmatrix %*% I_mat[j, ])
 
     new_deaths_S <- mu * S_mat[j, ]
     new_deaths_I <- mu * I_mat[j, ]
@@ -239,9 +260,9 @@ ricker_SIR_model <- function(bmatrix, mu, K, gamma,
     I_mat[j + 1, ] <- I_mat[j, ] + (I_change * delta_T)
     R_mat[j + 1, ] <- R_mat[j, ] + (R_change * delta_T)
 
-    S_mat[S_mat < 0] <- 0
-    I_mat[I_mat < 0] <- 0
-    R_mat[R_mat < 0] <- 0
+    S_mat[j + 1, ][S_mat[j + 1, ] < 0] <- 0
+    I_mat[j + 1, ][I_mat[j + 1, ] < 0] <- 0
+    R_mat[j + 1, ][R_mat[j + 1, ] < 0] <- 0
   }
   return(list(S_mat, I_mat, R_mat))
 }
