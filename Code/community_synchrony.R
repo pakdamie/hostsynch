@@ -1,12 +1,13 @@
 # Function to evaluate how community synchrony changes with sigma_i
-evaluate_community_synchrony <- function(n_species = 5, 
+evaluate_community_synchrony <- function(n_species = 10, 
                                          sigma_i_seq,
                                          r0 = 0.10,
                                          timestep = 365, 
                                          sd_envir = 10, 
-                                         seasonal = 10, 
-                                         mean_beta = 5e-4, 
+                                         seasonal = 1, 
+                                         mean_beta = 1e-3, 
                                          CV = 0.10, 
+                                         E_0 = 0,
                                          param = "standard", reps = 100) {
   
   # Initialize the result list
@@ -23,7 +24,8 @@ evaluate_community_synchrony <- function(n_species = 5,
     ))
     
     # Generate the beta matrix
-    beta_matrix <- simulate_betas(n_species = n_species, mean_beta = mean_beta,  CV_desired =  CV)
+    beta_matrix <- simulate_betas(n_species = n_species, mean_beta = mean_beta, 
+                                  inter_mult = 0.2, CV_desired =  CV)
     
     # Initialize the list for replicates
     RE_synchrony_rep <- NULL
@@ -68,7 +70,7 @@ evaluate_community_synchrony <- function(n_species = 5,
   return(RE_synchrony_DF)
 }
 
-RE_synchrony_DF <- evaluate_community_synchrony(sigma_i_seq = seq(1,20,length = 10))
+RE_synchrony_DF <- evaluate_community_synchrony(sigma_i_seq = c(5,30,50))
 
 
 plot_RE_synch_value(RE_synchrony_DF) 
