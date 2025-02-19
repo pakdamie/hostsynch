@@ -1,7 +1,7 @@
 #' Retrieve parameter to be used
 #'
 #' Standard sets of parameter values to be used for modeling;
-#' Certain parameter set may be only used once, for supplements. 
+#' Certain parameter set may be only used once, for supplements.
 #'
 #' @param type (character) "standard" is the usual, "no inf" is if
 #' you want to see the dynamics without any infection
@@ -11,25 +11,25 @@
 #'
 #' @examples
 create_parameters <- function(timesteps, type = "standard") {
-  ###Standard parameter set
+  ### Standard parameter set
   param_df <-
     c(
       infection_time = 50,
       mu = 0.01, # Mortality rate
       K = 100, # Carrying capacity
       gamma = 1 / 7, # Recovery rate
-      initial_values = 100, 
+      initial_values = 100,
       delta_T = 1,
       time = timesteps
     )
 
 
   # There is no infection at all (choose this if you want to see just regular
-  #old fluctuations)
+  # old fluctuations)
   param_no_inf <- param_df
   param_no_inf["infection_time"] <- 1e50
 
-  #Returns a parameter set depend on 
+  # Returns a parameter set depend on
   switch_param <- switch(type,
     "standard" = param_df,
     "no_inf" = param_no_inf
@@ -55,15 +55,36 @@ create_parameters <- function(timesteps, type = "standard") {
 #' @export
 #'
 #' @examples
-simulate_variablity_species <- function(sigma_i, r0, E_0, r_sigma_0, n_species) {
-  rnorm_rmax <- rnorm(n_species, mean = r0, sd = 2) # growth rate
-  rnorm_Eopt <- rnorm(n_species, mean = E_0, sd = sigma_i) # optimum Environment
-  rnorm_r_sigma <- rnorm(n_species, mean = r_sigma_0, sd = 0.01) # std.
-  
-  rmatrix <- cbind(r0, rnorm_Eopt, r_sigma_0)
+#' 
+simulate_variablity_species <- function(breadth_var, n_species) {
+  rnorm_Eopt <- runif(n_species, min = -5, max = 5) # optimum Environment
+  rlnorm_sigma <- rlnorm(n_species, mean = 2, sd = breadth_var) # std.
 
-  return(rmatrix)
+  area_under_fitcurve <- function(r_max, Eopt, Sigma) {
+    
+    E <- seq(-30, 30, length = 500)
+    y_output <- r_max * exp(-((E - Eopt)^2) / (2 * Sigma^2))
+    integrated_area <- integrate(approxfun(E, y_output), -30, 30, subdivisions = 2000)$value
+
+    return(abs(integrated_area) - 1)
+  }
+
+  result <- lapply(1:n_species, function(i) {
+    uniroot(
+      f = area_under_fitcurve,
+      interval = c(0, 5),
+      Eopt = rnorm_Eopt[i],
+      Sigma = rlnorm_sigma[i]
+    )$root
+  })
+
+  return(cbind.data.frame(
+    rmax = do.call(rbind, result),
+    rnorm_Eopt,
+    rlnorm_sigma
+  ))
 }
+
 
 #' Generate the growth rate at the given environment value
 #'
@@ -83,8 +104,22 @@ simulate_gaussian_curve <- function(E, rmat_row) {
   r_sigma <- rmat_row[3]
 
   gaus <- r0 * exp(-((E - E_opt)^2) / (2 * r_sigma^2))
+  
   return(gaus)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #' Simulate the environmental fluctuations independently
 #'
@@ -97,7 +132,7 @@ simulate_gaussian_curve <- function(E, rmat_row) {
 #'
 #' @examples
 simulate_env_flucs <- function(sd_envir, timestep = 365 * 5, seasonal = 10) {
-  environ <- 10 * sin((2 * pi * seq(1, timestep)) / seasonal) + 
+  environ <- 10 * sin((2 * pi * seq(1, timestep)) / seasonal) +
     rnorm(timestep, mean = 0, sd = sd_envir)
   return(cbind(seq(1:timestep), environ))
 }
@@ -118,11 +153,12 @@ simulate_env_flucs <- function(sd_envir, timestep = 365 * 5, seasonal = 10) {
 #'
 #' @examples r_matrix(100, 100, 2.5, 1, 1)
 simulate_r_matrix <- function(
-    n_species = 10, sigma_i = 1, r0 = 2, E_0 = 2, r_sigma_0 = 10,
-    sd_envir = 0.15, timestep = 365 * 10, seasonal = 10) {
+    n_species = 10, breadth_var = 0.25,
+    sd_envir = 0.15, 
+    timestep = 365 * 10, seasonal = 10) {
   
   environmental_factor <- simulate_env_flucs(sd_envir, timestep, seasonal)
-  species_trait <- simulate_variablity_species(sigma_i, r0, E_0, r_sigma_0, n_species)
+  species_trait <- simulate_variablity_species(breadth_var, n_species)
 
 
   # For each time-step (col)
@@ -173,7 +209,6 @@ simulate_beta_gamma <- function(n, mean_beta, CV_desired) {
 #'
 #' @examples
 simulate_betas <- function(n_species = 10, mean_beta, inter_mult, CV_desired) {
-  
   std_wanted <- CV_desired * mean_beta
   varianced_wanted <- std_wanted^2
 
@@ -187,13 +222,12 @@ simulate_betas <- function(n_species = 10, mean_beta, inter_mult, CV_desired) {
     nrow = n_species,
     ncol = n_species
   )
-  
-  for (m in seq(1, n_species)){
-    Beta_Mat[,m] <- beta_intra[m] * inter_mult
-    Beta_Mat[m,] <- beta_intra[m] * inter_mult
-    
+
+  for (m in seq(1, n_species)) {
+    Beta_Mat[, m] <- beta_intra[m] * inter_mult
+    Beta_Mat[m, ] <- beta_intra[m] * inter_mult
   }
-  
+
 
   diag(Beta_Mat) <- beta_intra
   return(Beta_Mat)

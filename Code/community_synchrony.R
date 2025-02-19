@@ -1,31 +1,34 @@
 # Function to evaluate how community synchrony changes with sigma_i
-evaluate_community_synchrony <- function(n_species = 10, 
-                                         sigma_i_seq,
-                                         r0 = 0.10,
+evaluate_community_synchrony <- function(n_species = 100, 
+                                         niche_breadth,
                                          timestep = 365, 
                                          sd_envir = 10, 
                                          seasonal = 1, 
                                          mean_beta = 1e-3, 
                                          CV = 0.10, 
-                                         E_0 = 0,
-                                         param = "standard", reps = 100) {
+                                         param = "standard", 
+                                         reps = 100) {
   
   # Initialize the result list
   RE_synchrony_list <- NULL
   
   # Iterate over each sigma_i value
-  for (i in seq_along(sigma_i_seq)) {
+  for (i in seq_along(niche_breadth)) {
     
     # Generate r matrices for the current sigma_i
     rmatrix_list <- lapply(1:reps, function(x) simulate_r_matrix(
       n_species = n_species,
-      r0 = r0, E_0 = E_0, timestep = timestep, sd_envir = sd_envir, 
-      seasonal = seasonal, sigma_i = sigma_i_seq[i]
+      breadth_var = niche_breadth[i],
+      timestep = timestep,
+      sd_envir = sd_envir, 
+      seasonal = seasonal
     ))
     
     # Generate the beta matrix
-    beta_matrix <- simulate_betas(n_species = n_species, mean_beta = mean_beta, 
-                                  inter_mult = 0.2, CV_desired =  CV)
+    beta_matrix <- simulate_betas(n_species = n_species, 
+                                  mean_beta = mean_beta, 
+                                  inter_mult = 0.2, 
+                                  CV_desired =  CV)
     
     # Initialize the list for replicates
     RE_synchrony_rep <- NULL
@@ -34,6 +37,7 @@ evaluate_community_synchrony <- function(n_species = 10,
     for (r in seq_len(reps)) {
       # Simulate the full model
       model_sim <- simulate_full_model(n_species = n_species, param = param, 
+                                       time = timestep,
                                        bmatrix = beta_matrix, rmatrix = rmatrix_list[[r]])
       
       # Wrangle model output
@@ -65,12 +69,12 @@ evaluate_community_synchrony <- function(n_species = 10,
   
   # Combine all results into a single data frame
   RE_synchrony_DF <- do.call(rbind, RE_synchrony_list)
-  RE_synchrony_DF$sigma_i <- rep(sigma_i_seq, each = reps)
+  RE_synchrony_DF$sigma_i <- rep(niche_breadth, each = reps)
   
   return(RE_synchrony_DF)
 }
 
-RE_synchrony_DF <- evaluate_community_synchrony(sigma_i_seq = c(5,30,50))
+RE_synchrony_DF <- evaluate_community_synchrony(niche_breadth = c(0.01,0.5))
 
 
 plot_RE_synch_value(RE_synchrony_DF) 
