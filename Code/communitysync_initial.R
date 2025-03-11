@@ -1,6 +1,10 @@
 ## How is community synchrony influenced by seasonal fluctuations 
 ## as well as the variability in niche breadth?
 
+
+source("Code/Functions/calculate_functions.R")
+source("Code/Functions/simulate_functions.R")
+sourceCpp("Code/Functions/Ricker.cpp")
 library(parallel)
 
 # Detect number of cores
@@ -31,3 +35,43 @@ for (i in seq(1, nrow(full_expand))) {
     )
   }, mc.cores = numCoresToUse)  # Use the correct number of cores
 }
+
+beta_matrix <- simulate_betas(n_species = n_species, 
+                              mean_beta = 3e-100, 
+                              inter_mult = 0.2, 
+                              CV_desired = 0.25)
+
+
+calculate_synchrony  <- function(
+    n_species,timestep,bmatrix,rmatrix_list){
+  
+  
+  summary_list = NULL
+  for (i in seq(1,length(breadth_rep_list))){
+    
+    model_sim <- lapply(1:reps, function(x)
+      simulate_full_model(n_species = n_species,
+                          params = create_parameters(timestep,"standard"),
+                          bmatrix = bmatrix,
+                          rmatrix = rmatrix_list[[i]][[x]])) 
+    
+    
+    model_sim_df <- lapply(model_sim, function(x)
+      wrangle_model_output(x, "Yes"))
+    
+    synchrony_value <- lapply(model_sim_df,function(x)
+      community.sync(subset(x, select = -time))$obs)
+    
+    
+    summary_list[[i]] <- 
+      cbind.data.frame(synch_value = do.call(rbind,synchrony_value),
+                                          niche = full_expand[i,1],
+                                          envir = full_expand[i,2])
+    
+  }
+  
+  return(do.call(rbind,summary_list))
+}
+
+full_synchrony<- calculate_synchrony(n_species ,timestep , beta_matrix,breadth_rep_list )
+
