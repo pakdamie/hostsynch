@@ -13,9 +13,9 @@ numCoresToUse <- max(1, numCores - 2)  # Ensure there's at least 1 core availabl
 
 n_species <- 10
 timestep <- 365 * 5
-reps <- 5
-breadth_var <- seq(0, 0.5, 0.1)
-seasonal_var <- seq(1, 180, length = 5)
+reps <- 1000
+breadth_var <- seq(0, 0.5, length =10)
+seasonal_var <- seq(1, 180, length = 10)
 
 # Create a grid for breadth and seasonal variables
 full_expand <- expand.grid(breadth_var, seasonal_var)
