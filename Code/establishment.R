@@ -1,54 +1,118 @@
+n_species <- 10
+timestep <- 365 * 5
+reps <- 1000
+breadth_var <- seq(0, 0.5, 0.1)
+seasonal_var <- 30
 
-sigma_i <- seq(0,20,length = 10)
+full_expand<- expand.grid(breadth_var,seasonal_var)
 
-RE_invadable_list<- NULL
 
-for (i in seq_along(sigma_i)){
-  
-  rmatrix_interest <- lapply(1:100, function(x) simulate_r_matrix(r0 = 0.10, 
-                                                                  timestep = 365 * 1,
-                                                                  sd_envir = 10, seasonal = 10,
-                                                                  sigma_i = sigma_i[i]))
-  
-  beta_matrix <- simulate_betas(n_species = 10, mean_beta = 5e-4, CV_desired = 0.10)
-  
-  
-  RE_synchrony_rep <- NULL
-  
-  for (r in seq(1,100)){
-    
-    model_sim <- simulate_full_model(n_species = 10,
-                                     param = "no_inf",
-                                     bmatrix = beta_matrix,
-                                     rmatrix =  rmatrix_interest[[r]]) 
-    
-    model_sim_df <- wrangle_model_output(model_sim, "Yes")
-
-    RE_time <- calculate_R_effective(model_sim, time = 365 * 1, b_matrix = beta_matrix, 
-                                     params = create_parameters(365 * 1,"no_inf"))
-    
-    RE_greater_1 <- nrow(RE_time[RE_time$RE>1,])/365
-    
-    synchrony_value <- community.sync(subset(model_sim_df, select = -time))$obs
-    
-    
-    RE_synchrony_rep[[r]] <- cbind.data.frame(synch_value = synchrony_value,
-                                              prop_invadable = RE_greater_1 )
-    
-  }
-  RE_invadable_list[[i]] <- do.call(rbind, RE_synchrony_rep)
+breadth_rep_list <- NULL
+for (i in seq(1, nrow(full_expand))) {
+  breadth_rep_list[[i]] <- lapply(1:reps, function(x) {
+    simulate_r_matrix(
+      n_species = n_species,
+      breadth_var = full_expand[i,1],
+      timestep = timestep,
+      sd_envir = 10,
+      seasonal = full_expand[i,2]
+    )
+  })
 }
-RE_synchrony_DF <- do.call(rbind,  RE_invadable_list)
-RE_synchrony_DF$sigma_i  <- rep(sigma_i, each = 100)
+bmatrix_list <- NULL
+bmatrix_list <- lapply(1:reps, function(x) {
+  simulate_betas(
+    n_species = n_species,
+    mean_beta = 5e-2,
+    inter_mult = 0.25,
+    CV_desired = 0.10
+  )
+})
 
 
 
-ggplot(RE_synchrony_DF, aes( x= synch_value, y= prop_invadable)) +
+calculate_establishment<- function(n_species,timestep, bmatrix_list, 
+                                   rmatrix_list){
+  summary_list = NULL
+  for (i in seq(1,nrow(full_expand))){
+    
+  model_sim <- lapply(1:reps, function(x)
+                      simulate_full_model(n_species = n_species,
+                                   params = create_parameters(timestep,"standard"),
+                                   bmatrix = bmatrix_list[[x]],
+                                   rmatrix = rmatrix_list[[i]][[x]])) 
+  
+
+  RE_time <- lapply(model_sim, function(x) calculate_R_effective(x,
+                                   time = timestep, 
+                                   b_matrix = beta_matrix, 
+                                   params = 
+                                   create_parameters(timestep,"standard"))[500:
+                                                                          (timestep),])
+  
+  RE_values<- do.call(rbind,lapply(RE_time, function(x) cbind(mean_RE =mean(x$RE),
+                                    CV_RE = sd(x$RE) / mean(x$RE))))
+  
+  
+  RE_greater_1 <- lapply(RE_time,function(x)
+                       nrow(x[x$RE>1,])/(timestep - 500))
+
+  model_sim_df <- lapply(model_sim, function(x)
+                         wrangle_model_output(x, "Yes"))
+  
+  synchrony_value <- lapply(model_sim_df,function(x)
+                            community.sync(subset(x, select = -time))$obs)
+  
+  
+  summary_list[[i]] <- cbind.data.frame(synch_value = do.call(rbind,synchrony_value),
+                                            prop_invadable = do.call(rbind,RE_greater_1),
+                                            niche = full_expand[i,1],
+                                            envir = full_expand[i,2],
+                                            RE_values)
+  
+  }
+  
+  return(do.call(rbind,summary_list))
+  }
+
+
+
+
+tmp <- calculate_establishment(n_species = 10 ,
+                         timestep = 365 * 5, 
+                         bmatrix_list = bmatrix_list, 
+                         rmatrix_list = breadth_rep_list)
+
+
+
+
+ggplot(tmp, aes( x= synch_value, y=  prop_invadable)) +
   geom_point() + 
-  xlab("Community synchrony") + 
+  facet_wrap(~envir) 
+xlab("Community synchrony") + 
   ylab("Proportion of time invasible") + 
   theme_classic()
 
 
+
+
+ggplot(tmp, aes( x= synch_value, y= CV_RE)) +
+  geom_point() + 
+  facet_wrap(~envir)
+  xlab("Community synchrony") + 
+  ylab("Proportion of time invasible") + 
+  theme_classic()
+
+  
+  ggplot(tmp, aes( x= synch_value, y= mean_RE)) +
+    geom_point() + 
+  xlab("Community synchrony") + 
+    ylab("Proportion of time invasible") + 
+    theme_classic()
+  
+  
+  
+  
+  
 
 

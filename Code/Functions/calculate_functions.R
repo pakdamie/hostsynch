@@ -70,32 +70,19 @@ calculate_R_effective <- function(List, time, b_matrix, params) {
 
   for (j in (1:time)) {
     
-  
     F_mat <- diag(S[j, ]) %*% b_matrix
-    
-    
     V_mat <- diag(1 / (gamma + mu), ncol = length(S[j, ]), nrow = length(S[j, ]))
 
     RE <- max(abs(Re(eigen(F_mat %*% V_mat)$values)))
+    contribution_species <- (rowSums(F_mat %*% V_mat))
 
-    contribution_species <- (colSums(F_mat %*% V_mat))
-
-    RE_matrix[[j]] <- cbind.data.frame(time = j, RE = RE)
+    RE_matrix[[j]] <- cbind.data.frame(time = j, 
+                                       RE = RE, 
+                                       total_sus = sum(S[j, ]))
   }
 
   return(do.call(rbind, RE_matrix))
 }
-
-
-
-
-
-
-
-
-
-
-
 
 #' Calculate the community synchrony
 #'

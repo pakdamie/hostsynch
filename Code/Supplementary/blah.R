@@ -1,6 +1,6 @@
 n_species = 10
 #Debugging simulate funciton
-infection_time = 500
+infection_time = 1e30
 mu = 2e-2 # Mortality rate
 K = 200 # Carrying capacity
 gamma = 1 / 7 # Recovery rate
@@ -33,7 +33,13 @@ tmp <- ricker_SIR_model(bmatrix = beta_matrix,mu =  mu, K = K,gamma = gamma,
                        infection_time = infection_time, rmatrix = sim_r_matrix, 
                        n_species = n_species,times = timestep, initial_values, delta_T)
  
-wrangle_modeled_df <- wrangle_model_output(tmp, "Yes") 
+ricker_rcpp <- Ricker_Model(bmatrix = beta_matrix,mu =  mu, K = K,gamma = gamma,
+                        rmatrix = sim_r_matrix, 
+                        n_species = n_species,times = timestep, initial_values, delta_T)
+
+
+wrangle_modeled_df <- wrangle_model_output(tmp, "No") 
+wrangle_modeled_tmp2_df <- wrangle_model_output(ricker_rcpp, "No") 
 
 
 ggplot(wrangle_modeled_df, aes(x = time, y= value, color = variable, group = variable )) +
@@ -46,6 +52,21 @@ ggplot(wrangle_modeled_df, aes(x = time, y= value, color = variable, group = var
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         axis.title = element_text(size = 16))
+
+ggplot(wrangle_modeled_tmp2_df , aes(x = time, y= value, color = variable, group = variable )) +
+  geom_line() + 
+  xlab("Time") + 
+  ylab("TotaAbundance") + 
+  scale_color_viridis(discrete = TRUE, option = 'mako') + 
+  theme_classic() + 
+  theme(legend.position = 'none',
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_text(size = 16))
+
+
+
+
 
 ggsave(here("Figures","Timeseries.pdf"), units = "in", height = 3, width = 5)
 

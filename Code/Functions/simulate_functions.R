@@ -15,10 +15,10 @@ create_parameters <- function(timesteps, type = "standard") {
   ### Standard parameter 
   param_df <-
     c(mu = 2e-2, # Mortality rate
-      K = 100, # Carrying capacity
+      K = 100.0, # Carrying capacity
       gamma = 1 / 7, # Recovery rate
-      initial_values = 100, #I nitial number.
-      delta_T = 1, #Time step 
+      initial_values = 100.0, #I nitial number.
+      delta_T = 1.0, #Time step 
       timesteps = timesteps,
       infection_time = 1e30)
   
@@ -55,6 +55,9 @@ create_parameters <- function(timesteps, type = "standard") {
 #' 
 simulate_variablity_species <- function(breadth_var, n_species) {
   
+  ###Environmental variable 
+  E <- seq(-30, 30, length = 500) 
+  
   #Draw the optimum environment for each species using a uniform distribution
   rnorm_Eopt <- runif(n_species, min = -10, max = 10) 
   
@@ -67,7 +70,7 @@ simulate_variablity_species <- function(breadth_var, n_species) {
   #This is the function to optimize
   area_under_fitcurve <- function(r_max, Eopt, Sigma) {
     
-    E <- seq(-30, 30, length = 500) #Environment variable
+  #Environment variable
     y_output <- r_max * exp(-((E - Eopt)^2) / (2 * Sigma^2)) #Gaussian curve
     
     #Use approxfun to create a function which we can integrate.
@@ -322,7 +325,7 @@ ricker_SIR_model <- function(bmatrix, mu, K, gamma,
 #' @export
 #'
 #' @examples
-simulate_full_model <- function(n_species, time, params, bmatrix, rmatrix) {
+simulate_full_model <- function(n_species, params, bmatrix, rmatrix) {
   
   infection_time <- params["infection_time"]
   mu <- params["mu"]
@@ -332,17 +335,14 @@ simulate_full_model <- function(n_species, time, params, bmatrix, rmatrix) {
   initial_values <- params["initial_values"]
   delta_T <- params["delta_T"]
 
-  model <- ricker_SIR_model(
-    bmatrix = bmatrix, 
-    mu = mu, K = K,
-    gamma = gamma,
-    infection_time = infection_time,
-    rmatrix = rmatrix,
-    n_species = n_species, 
-    times = times,
-    initial_values = initial_values,
-    delta_T = delta_T
-  )
+  model <- Ricker_Model(bmatrix = bmatrix,
+               mu =  mu,
+               K = K,
+               gamma = gamma,
+               rmatrix = rmatrix, 
+               n_species = n_species,
+               times = timestep,
+               initial_values, delta_T)
 
   return(model)
 }
