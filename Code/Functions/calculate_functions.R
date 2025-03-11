@@ -64,6 +64,7 @@ calculate_R_effective <- function(List, time, b_matrix, params) {
   K <- params["K"]
   gamma <- params["gamma"]
 
+  ###List of susceptible
   S <- List[[1]]
 
   RE_matrix <- NULL

@@ -12,15 +12,13 @@ sd_envir = 30
 breadth_var = 0.50
 
 
-
-sim_r_matrix <- simulate_r_matrix(
+sim_r_matrix<- simulate_r_matrix(
   n_species = n_species,
   breadth_var = breadth_var,
   timestep = timestep,
   sd_envir = sd_envir, 
   seasonal = seasonal
 )
-
 
 
 beta_matrix <- simulate_betas(n_species = n_species, 

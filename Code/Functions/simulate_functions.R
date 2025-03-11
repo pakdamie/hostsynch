@@ -223,13 +223,12 @@ simulate_betas <- function(n_species = 10, mean_beta, inter_mult, CV_desired) {
     ncol = n_species
   )
 
-  for (m in seq(1, n_species)) {
-    Beta_Mat[, m] <- beta_intra[m] * inter_mult
-    Beta_Mat[m, ] <- beta_intra[m] * inter_mult
-  }
-
-
   diag(Beta_Mat) <- beta_intra
+  
+  Beta_Mat<- (outer(beta_intra ,   beta_intra , FUN = function(x, y) inter_mult* (x + y) / 2))
+  diag(Beta_Mat) <- beta_intra
+  
+        
   return(Beta_Mat)
 }
 
