@@ -75,3 +75,17 @@ calculate_synchrony  <- function(
 
 full_synchrony<- calculate_synchrony(n_species ,timestep , beta_matrix,breadth_rep_list )
 
+aggregated_dat<- aggregate(synch_value~niche + envir, mean, data = full_synchrony)
+
+
+ggplot(aggregated_dat, aes(x = niche, y = envir, fill = synch_value))+ 
+  geom_tile() + 
+  scale_fill_viridis(name = "Community \nsynchrony") + 
+  scale_x_continuous(expand = c(0,0)) + 
+  scale_y_continuous(expand = c(0,0)) + 
+  xlab("Variability of niche breadth") + 
+  ylab("Environmental fluctuation") + 
+  theme(axis.text = element_text(size = 12, color = 'black'),
+        axis.title = element_text(size = 14, color = 'black'))
+
+ggsave(here("Figures","initial_synchrony.pdf"), width = 6, height =4.5, units = "in")

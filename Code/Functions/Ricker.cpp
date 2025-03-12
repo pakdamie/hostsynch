@@ -12,7 +12,8 @@ Rcpp::List Ricker_Model(int n_species,
                  double K,
                  double mu,
                  double gamma,
-                 double delta_T) {
+                 double delta_T,
+                 int infection_time) {
   
   
   //SIR matrices
@@ -34,6 +35,13 @@ Rcpp::List Ricker_Model(int n_species,
   arma::rowvec new_recoveries;
   // Total individuals in each species at time j
   for (int j = 0; j < times - 1; j++) {
+    
+    if(j == infection_time){
+      I_mat(j) = 1;
+      }
+      else{
+        I_mat(j) = I_mat(j);
+      }
     
     N_vec = S_mat.row(j) + I_mat.row(j) + R_mat.row(j);
     newbirths = rmatrix.row(j) % N_vec  % exp(-1.0 / K * N_vec);
