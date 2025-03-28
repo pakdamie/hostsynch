@@ -22,28 +22,6 @@ wrangle_model_output <- function(list_output, synch, inf = "No") {
   return(df_to_return)
 }
 
-#'
-#'
-#' @param list_output
-#'
-#' @returns
-#' @export
-#'
-#' @examples
-wrangle_sus_inf_output <- function(list_output) {
-  full_S_DF <- data.frame(list_output[[1]])
-  full_I_DF <- data.frame(list_output[[2]])
-
-  full_S_DF$time <- seq(1, nrow(full_S_DF))
-  full_I_DF$time <- seq(1, nrow(full_I_DF))
-
-  full_S_DF_melt <- melt(full_S_DF, id.vars = "time")
-  full_I_DF_melt <- melt(full_I_DF, id.vars = "time")
-
-
-  return(list(full_S_DF_melt, full_I_DF_melt))
-}
-
 
 #' Calculate the RE
 #'

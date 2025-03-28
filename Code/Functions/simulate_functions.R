@@ -128,7 +128,9 @@ simulate_gaussian_curve <- function(E, rmat_row) {
 #' @export
 #'
 #' @examples
-simulate_env_flucs <- function(sd_envir, timestep = 365 * 5, seasonal = 10) {
+simulate_env_flucs <- function(sd_envir, 
+                               timestep = 365 * 5, 
+                               seasonal = 10) {
   environ <- 10 * sin((2 * pi * seq(1, timestep)) / seasonal) +
     rnorm(timestep, mean = 0, sd = sd_envir)
   return(cbind(seq(1:timestep), environ))
@@ -153,6 +155,7 @@ simulate_r_matrix <- function(
     n_species = 10, breadth_var = 0.25,
     sd_envir = 0.15,
     timestep = 365 * 10, seasonal = 10) {
+  
   environmental_factor <- simulate_env_flucs(sd_envir, timestep, seasonal)
   species_trait <- simulate_variablity_species(breadth_var, n_species)
 
@@ -189,8 +192,17 @@ simulate_beta_gamma <- function(n, mean_beta, CV_desired) {
   shape <- (mean_beta^2) / (varianced_wanted)
   rate <- (mean_beta) / (varianced_wanted)
 
-  return(dgamma(seq(0, 9e-4, length.out = n), shape = shape, rate = rate))
+  x_vals <- seq(0, 1e-4, length.out = n)
+  
+  # Compute gamma density
+  density_vals <- dgamma(x_vals, shape = shape, rate = rate)
+  random_vals <- rgamma(n, shape = shape, rate = rate)
+  
+
+
+  return(random_vals)
 }
+
 
 
 #' Simulate the beta matrix for disease transmission using a gamma
@@ -228,6 +240,42 @@ simulate_betas <- function(n_species = 10, mean_beta, inter_mult, CV_desired) {
   return(Beta_Mat)
 }
 
+#' Simulate full model
+#' @param n_species
+#' @param rmatrix
+#' @param bmatrix - Disease transmission
+#' @returns
+#' @export
+#'
+#' @examples
+simulate_full_model <- function(n_species, 
+                                params,
+                                bmatrix, 
+                                rmatrix) {
+  
+  infection_time <- params["infection_time"]
+  mu <- params["mu"]
+  K <- params["K"]
+  gamma <- params["gamma"]
+  times <- params["timesteps"]
+  initial_values <- params["initial_values"]
+  delta_T <- params["delta_T"]
+
+  model <- Ricker_Model(
+    bmatrix = bmatrix,
+    mu = mu,
+    K = K,
+    gamma = gamma,
+    rmatrix = rmatrix,
+    n_species = n_species,
+    times = timestep,
+    initial_values, 
+    delta_T,
+    infection_time
+  )
+
+  return(model)
+}
 
 
 #' Simulate the discrete SIR/Ricker model
@@ -250,93 +298,60 @@ simulate_betas <- function(n_species = 10, mean_beta, inter_mult, CV_desired) {
 #' @export
 #'
 #' @examples
-ricker_SIR_model <- function(bmatrix, mu, K, gamma,
-                             infection_time, rmatrix,
-                             n_species = 100, times,
-                             initial_values, delta_T) {
-  # These are the matrix where are tracking the abundance.
-  compartment_label <- c(
-    "S_mat", "I_mat", "R_mat"
-  )
-  # Create the matrix where columns are the number of species
-  # and the rows are the number of times.
-  for (i in 1:length(compartment_label)) {
-    assign(
-      compartment_label[i],
-      matrix(0, nrow = times, ncol = n_species)
-    )
-  }
-
-  # We initialize all species to have the same initial values
-  S_mat[1, ] <- initial_values
-
-  for (j in seq(1, times - 1)) {
-    # Total individuals in each species at time j
-    N <- S_mat[j, ] + I_mat[j, ] + R_mat[j, ]
-
-    # Ricker births
-    new_births <- (rmatrix[j, ] * N * exp(-1 / K * N))
-
-    # How many individuals get infected by other individuals both within and
-    # between species
-
-    if ((j == infection_time) == TRUE) {
-      I_mat[j, ] <- 1 # Initial seed of infection
-    } else {
-      I_mat[j, ] <- I_mat[j, ]
-    }
-
-    new_infections_sp <- S_mat[j, ] * (bmatrix %*% I_mat[j, ])
-    new_deaths_S <- mu * S_mat[j, ]
-    new_deaths_I <- mu * I_mat[j, ]
-    new_deaths_R <- mu * R_mat[j, ]
-    new_recoveries <- gamma * I_mat[j, ]
-
-    S_change <- new_births - new_deaths_S - new_infections_sp
-    I_change <- new_infections_sp - new_recoveries - new_deaths_I
-    R_change <- new_recoveries - new_deaths_R
-
-
-    S_mat[j + 1, ] <- S_mat[j, ] + (S_change * delta_T)
-    I_mat[j + 1, ] <- I_mat[j, ] + (I_change * delta_T)
-    R_mat[j + 1, ] <- R_mat[j, ] + (R_change * delta_T)
-
-    S_mat[j + 1, ][S_mat[j + 1, ] < 0] <- 0
-    I_mat[j + 1, ][I_mat[j + 1, ] < 0] <- 0
-    R_mat[j + 1, ][R_mat[j + 1, ] < 0] <- 0
-  }
-  return(list(S_mat, I_mat, R_mat))
-}
-
-
-#' Simulate full model
-#' @param n_species
-#' @param rmatrix
-#' @param bmatrix - Disease transmission
-#' @returns
-#' @export
-#'
-#' @examples
-simulate_full_model <- function(n_species, params, bmatrix, rmatrix) {
-  infection_time <- params["infection_time"]
-  mu <- params["mu"]
-  K <- params["K"]
-  gamma <- params["gamma"]
-  times <- params["timesteps"]
-  initial_values <- params["initial_values"]
-  delta_T <- params["delta_T"]
-
-  model <- Ricker_Model(
-    bmatrix = bmatrix,
-    mu = mu,
-    K = K,
-    gamma = gamma,
-    rmatrix = rmatrix,
-    n_species = n_species,
-    times = timestep,
-    initial_values, delta_T,
-    infection_time
-  )
-
-  return(model)
-}
+#ricker_SIR_model <- function(bmatrix, mu, K, gamma,
+#                             infection_time, rmatrix,
+#                            n_species = 100, times,
+#                             initial_values, delta_T) {
+#  # These are the matrix where are tracking the abundance.
+#  compartment_label <- c(
+#    "S_mat", "I_mat", "R_mat"
+#  )
+#  # Create the matrix where columns are the number of species
+#  # and the rows are the number of times.
+#  for (i in 1:length(compartment_label)) {
+#    assign(
+#      compartment_label[i],
+#      matrix(0, nrow = times, ncol = n_species)
+#    )
+#  }
+#
+#  # We initialize all species to have the same initial values
+#  S_mat[1, ] <- initial_values
+#
+#  for (j in seq(1, times - 1)) {
+#    # Total individuals in each species at time j
+#    N <- S_mat[j, ] + I_mat[j, ] + R_mat[j, ]
+#
+#    # Ricker births
+#    new_births <- (rmatrix[j, ] * N * exp(-1 / K * N))
+#
+#    # How many individuals get infected by other individuals both within and
+#    # between species
+#
+#    if ((j == infection_time) == TRUE) {
+#      I_mat[j, ] <- 1 # Initial seed of infection
+#    } else {
+#      I_mat[j, ] <- I_mat[j, ]
+#    }
+#
+#    new_infections_sp <- S_mat[j, ] * (bmatrix %*% I_mat[j, ])
+#    new_deaths_S <- mu * S_mat[j, ]
+#    new_deaths_I <- mu * I_mat[j, ]
+#    new_deaths_R <- mu * R_mat[j, ]
+#    new_recoveries <- gamma * I_mat[j, ]
+#
+#    S_change <- new_births - new_deaths_S - new_infections_sp
+#    I_change <- new_infections_sp - new_recoveries - new_deaths_I
+#    R_change <- new_recoveries - new_deaths_R
+#
+#
+#    S_mat[j + 1, ] <- S_mat[j, ] + (S_change * delta_T)
+#    I_mat[j + 1, ] <- I_mat[j, ] + (I_change * delta_T)
+#    R_mat[j + 1, ] <- R_mat[j, ] + (R_change * delta_T)
+#
+#    S_mat[j + 1, ][S_mat[j + 1, ] < 0] <- 0
+#    I_mat[j + 1, ][I_mat[j + 1, ] < 0] <- 0
+#    R_mat[j + 1, ][R_mat[j + 1, ] < 0] <- 0
+#  }
+#  return(list(S_mat, I_mat, R_mat))
+#}

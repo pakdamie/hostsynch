@@ -56,3 +56,33 @@ plot_RE_synch_value <- function(df){
   return(avg_RE_GG + CV_RE_GG + plot_layout(guides = 'collect'))
   
 }
+
+
+
+plot_transmission_hist <- function(){
+  
+  par(mfrow = c(2,2))
+  hist(simulate_beta_gamma(30000, 1e-4, 0.10),
+       xlab = "Intraspecific transmission coefficient",
+       main = "CV = 0.10",
+       xlim = c(0,9e-4))
+  abline(v=1e-4,col ='red')
+  hist(simulate_beta_gamma(30000, 1e-4, 0.25),
+       xlab = "Intraspecific transmission coefficient",
+       main = "CV = 0.25",
+       xlim =c(0,9e-4))
+  abline(v=1e-4,col ='red')
+  hist(simulate_beta_gamma(30000, 1e-4, 0.75),
+       xlab = "Intraspecific transmission coefficient",
+       main = "CV = 0.75",
+       xlim =c(0,9e-4))
+  abline(v=1e-4,col ='red')
+  hist(simulate_beta_gamma(30000, 1e-4,1),
+       xlab = "Intraspecific transmission coefficient",
+       main = "CV = 1",
+       xlim =c(0,9e-4))
+  abline(v=1e-4,col ='red')
+  
+  
+  
+}
